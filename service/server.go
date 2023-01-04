@@ -14,12 +14,12 @@ var (
 )
 
 type server struct {
-	repo repository.ProductsRepository
+	repo repository.ProductRepository
 	mux  *gin.Engine
 	port string
 }
 
-func New(r repository.ProductsRepository, p string) *server {
+func New(r repository.ProductRepository, p string) *server {
 	return &server{
 		repo: r,
 		mux:  gin.Default(),

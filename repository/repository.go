@@ -14,7 +14,7 @@ var (
 	errInvalidPrice = errors.New("invalid product price")
 )
 
-type ProductsRepository interface {
+type ProductRepository interface {
 	All() []model.Product
 	GetById(int) (model.Product, error)
 	PriceGreaterThan(float64) ([]model.Product, error)
@@ -25,7 +25,7 @@ type repository struct {
 	Products []model.Product `json:"products"`
 }
 
-func New(fn string) (ProductsRepository, error) {
+func New(fn string) (ProductRepository, error) {
 	r := &repository{
 		filename: fn,
 	}
