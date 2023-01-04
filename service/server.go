@@ -1,10 +1,15 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"gituhb.com/juajosserand/goweb/repository"
+)
+
+var (
+	errInvalidId = errors.New("invalid product id")
 )
 
 type server struct {
@@ -24,6 +29,7 @@ func New(r repository.ProductsRepository, p string) *server {
 func (s *server) Run() error {
 	s.mux.GET("/ping", s.pong)
 	s.mux.GET("/products", s.getAll)
+	s.mux.GET("/products/:id", s.getById)
 
 	if err := s.mux.Run(s.port); err != nil {
 		return err

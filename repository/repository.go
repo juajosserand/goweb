@@ -2,14 +2,20 @@ package repository
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
 	"gituhb.com/juajosserand/goweb/model"
 )
 
+var (
+	errInvalidId = errors.New("invalid product id")
+)
+
 type ProductsRepository interface {
 	All() []model.Product
+	GetById(int) (model.Product, error)
 }
 
 type repository struct {
