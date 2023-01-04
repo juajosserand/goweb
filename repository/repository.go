@@ -43,6 +43,7 @@ func (r *repository) readFromFile() error {
 	if err != nil {
 		return fmt.Errorf("[repository.readFromFile] error: %w", err)
 	}
+	defer f.Close()
 
 	err = json.NewDecoder(f).Decode(&r.Products)
 	if err != nil {
