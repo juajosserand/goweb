@@ -39,12 +39,12 @@ func New(fn string) (ProductsRepository, error) {
 }
 
 func (r *repository) readFromFile() error {
-	data, err := os.ReadFile(r.filename)
+	f, err := os.OpenFile(r.filename, os.O_RDONLY, 0444)
 	if err != nil {
 		return fmt.Errorf("[repository.readFromFile] error: %w", err)
 	}
 
-	err = json.Unmarshal(data, &r.Products)
+	err = json.NewDecoder(f).Decode(&r.Products)
 	if err != nil {
 		return fmt.Errorf("[repository.readFromFile] error: %w", err)
 	}
