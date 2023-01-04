@@ -10,12 +10,14 @@ import (
 )
 
 var (
-	errInvalidId = errors.New("invalid product id")
+	errInvalidId    = errors.New("invalid product id")
+	errInvalidPrice = errors.New("invalid product price")
 )
 
 type ProductsRepository interface {
 	All() []model.Product
 	GetById(int) (model.Product, error)
+	PriceGreaterThan(float64) ([]model.Product, error)
 }
 
 type repository struct {
