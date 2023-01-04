@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"gituhb.com/juajosserand/goweb/repository"
+	"gituhb.com/juajosserand/goweb/service"
 )
 
 func main() {
@@ -19,7 +20,13 @@ func main() {
 		panic(err)
 	}
 
-	_, err = repository.New(os.Getenv("PRODUCTS_FILENAME"))
+	r, err := repository.New(os.Getenv("PRODUCTS_FILENAME"))
+	if err != nil {
+		panic(err)
+	}
+
+	s := service.New(r, os.Getenv("HTTP_SERVER_PORT"))
+	err = s.Run()
 	if err != nil {
 		panic(err)
 	}
