@@ -10,15 +10,17 @@ import (
 func (s *server) getById(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
-		ctx.Errors = append(ctx.Errors, ctx.Error(errInvalidId))
-		ctx.Status(http.StatusBadRequest)
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": errInvalidId.Error(),
+		})
 		return
 	}
 
 	p, err := s.repo.GetById(id)
 	if err != nil {
-		ctx.Errors = append(ctx.Errors, ctx.Error(err))
-		ctx.Status(http.StatusBadRequest)
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": errInvalidId.Error(),
+		})
 		return
 	}
 

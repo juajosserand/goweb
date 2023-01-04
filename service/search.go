@@ -10,15 +10,17 @@ import (
 func (s *server) search(ctx *gin.Context) {
 	price, err := strconv.ParseFloat(ctx.Query("priceGt"), 64)
 	if err != nil {
-		ctx.Errors = append(ctx.Errors, ctx.Error(errInvalidPrice))
-		ctx.Status(http.StatusBadRequest)
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": errInvalidPrice.Error(),
+		})
 		return
 	}
 
 	ps, err := s.repo.PriceGreaterThan(price)
 	if err != nil {
-		ctx.Errors = append(ctx.Errors, ctx.Error(errInvalidPrice))
-		ctx.Status(http.StatusBadRequest)
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": errInvalidPrice.Error(),
+		})
 		return
 	}
 
