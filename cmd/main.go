@@ -4,8 +4,9 @@ import (
 	"log"
 	"os"
 
-	"gituhb.com/juajosserand/goweb/repository"
-	"gituhb.com/juajosserand/goweb/service"
+	"gituhb.com/juajosserand/goweb/cmd/handlers"
+	"gituhb.com/juajosserand/goweb/cmd/server"
+	"gituhb.com/juajosserand/goweb/internal/product"
 )
 
 func main() {
@@ -20,14 +21,23 @@ func main() {
 		panic(err)
 	}
 
-	r, err := repository.New(os.Getenv("PRODUCTS_FILENAME"))
+	repo, err := product.NewRepository(os.Getenv("PRODUCTS_FILENAME"))
 	if err != nil {
 		panic(err)
 	}
 
-	s := service.New(r, os.Getenv("HTTP_SERVER_PORT"))
-	err = s.Run()
+	svc, err := product.NewService(repo)
 	if err != nil {
+		panic(err)
+	}
+
+	ph, err := handlers.NewProductHandlers(svc)
+	if err != nil {
+		panic(err)
+	}
+
+	s := server.New(ph, os.Getenv("HTTP_SERVER_PORT"))
+	if err := s.Run(); err != nil {
 		panic(err)
 	}
 }
