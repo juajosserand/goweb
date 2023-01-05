@@ -90,7 +90,6 @@ func (r *repository) PriceGreaterThan(price float64) ([]Product, error) {
 }
 
 func (r *repository) Create(p Product) error {
-	// code value validation
 	for _, product := range r.Products {
 		if product.CodeValue == p.CodeValue {
 			return errDuplicatedCodeValue
