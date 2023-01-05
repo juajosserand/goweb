@@ -18,11 +18,13 @@ type ProductRepository interface {
 	All() []model.Product
 	GetById(int) (model.Product, error)
 	PriceGreaterThan(float64) ([]model.Product, error)
+	Create(model.Product)
 }
 
 type repository struct {
-	filename string
 	Products []model.Product `json:"products"`
+	filename string
+	lastId   int
 }
 
 func New(fn string) (ProductRepository, error) {
@@ -34,6 +36,8 @@ func New(fn string) (ProductRepository, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	r.lastId = r.Products[len(r.Products)-1].Id
 
 	return r, nil
 }

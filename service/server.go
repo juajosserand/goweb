@@ -9,8 +9,10 @@ import (
 )
 
 var (
-	errInvalidId    = errors.New("invalid product id")
-	errInvalidPrice = errors.New("invalid product price")
+	errInvalidId             = errors.New("invalid product id")
+	errInvalidPrice          = errors.New("invalid product price")
+	errDuplicatedCodeValue   = errors.New("duplicated product code value")
+	errInvalidExpirationDate = errors.New("expiration date cannot be equal or less than today")
 )
 
 type server struct {
@@ -29,9 +31,12 @@ func New(r repository.ProductRepository, p string) *server {
 
 func (s *server) Run() error {
 	s.mux.GET("/ping", s.pong)
-	s.mux.GET("/products", s.getAll)
-	s.mux.GET("/products/:id", s.getById)
-	s.mux.GET("/products/search", s.search)
+
+	productsMux := s.mux.Group("/products")
+	productsMux.GET("/", s.getAll)
+	productsMux.GET("/:id", s.getById)
+	productsMux.GET("/search", s.search)
+	productsMux.POST("/", s.create)
 
 	if err := s.mux.Run(s.port); err != nil {
 		return err
