@@ -1,57 +1,53 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
-	"gituhb.com/juajosserand/goweb/cmd/handlers"
-	"gituhb.com/juajosserand/goweb/cmd/server"
+	"github.com/gin-gonic/gin"
+	"gituhb.com/juajosserand/goweb/config"
 	"gituhb.com/juajosserand/goweb/internal/product"
+	"gituhb.com/juajosserand/goweb/pkg/httpserver"
 )
 
 func main() {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Println(err)
-		}
-	}()
-
-	err := setEnv()
+	// reading config
+	config, err := config.New()
 	if err != nil {
-		panic(err)
+		log.Println(fmt.Errorf("error: %w", err))
 	}
 
-	repo, err := product.NewRepository(os.Getenv("PRODUCTS_FILENAME"))
+	// repository
+	repo, err := product.NewRepository(config.File.Path)
 	if err != nil {
-		panic(err)
+		log.Println(fmt.Errorf("error: %w", err))
 	}
 
-	svc, err := product.NewService(repo)
+	// service
+	svc := product.NewService(repo)
+
+	// http server
+	mux := gin.Default()
+	product.NewHandler(mux, svc)
+
+	server := httpserver.New(mux, httpserver.Port(config.HTTP.Port))
+
+	// signal
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case s := <-interrupt:
+		log.Println("signal:", s.String())
+	case err := <-server.Notify():
+		log.Println(fmt.Errorf("error: %w", err))
+	}
+
+	err = server.Shutdown()
 	if err != nil {
-		panic(err)
+		log.Println(fmt.Errorf("error: %w", err))
 	}
-
-	ph, err := handlers.NewProductHandlers(svc)
-	if err != nil {
-		panic(err)
-	}
-
-	s := server.New(ph, os.Getenv("HTTP_SERVER_PORT"))
-	if err := s.Run(); err != nil {
-		panic(err)
-	}
-}
-
-func setEnv() (err error) {
-	err = os.Setenv("PRODUCTS_FILENAME", "./products.json")
-	if err != nil {
-		return
-	}
-
-	err = os.Setenv("HTTP_SERVER_PORT", "8080")
-	if err != nil {
-		return
-	}
-
-	return
 }

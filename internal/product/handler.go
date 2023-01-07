@@ -1,34 +1,29 @@
-package handlers
+package product
 
 import (
-	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gituhb.com/juajosserand/goweb/internal/product"
 )
 
-var (
-	errNilService         = errors.New("invalid nil product service")
-	errInvalidId          = errors.New("invalid product id")
-	errInvalidPrice       = errors.New("invalid product price")
-	errCreation           = errors.New("unable to create product")
-	errInvalidProductData = errors.New("invalid product data")
-)
-
-type ProductHandlers struct {
-	svc product.ProductService
+type productHandler struct {
+	svc ProductService
 }
 
-func NewProductHandlers(s product.ProductService) (ProductHandlers, error) {
-	if s == nil {
-		return ProductHandlers{}, errNilService
+func NewHandler(mux *gin.Engine, s ProductService) {
+	ph := &productHandler{
+		svc: s,
 	}
 
-	return ProductHandlers{
-		svc: s,
-	}, nil
+	mux.GET("/ping", ph.Pong)
+
+	productsMux := mux.Group("/products")
+	productsMux.GET("/", ph.GetAll)
+	productsMux.GET("/:id", ph.GetById)
+	productsMux.GET("/search", ph.Search)
+	productsMux.POST("/", ph.Create)
 }
 
 type request struct {
@@ -40,17 +35,17 @@ type request struct {
 	Price       float64 `json:"price" binding:"required,gte=0"`
 }
 
-func (ph *ProductHandlers) Pong(ctx *gin.Context) {
+func (ph *productHandler) Pong(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"msg": "pong"})
 }
 
-func (ph *ProductHandlers) GetAll(ctx *gin.Context) {
+func (ph *productHandler) GetAll(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"products": ph.svc.All(),
 	})
 }
 
-func (ph *ProductHandlers) GetById(ctx *gin.Context) {
+func (ph *productHandler) GetById(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
@@ -70,7 +65,7 @@ func (ph *ProductHandlers) GetById(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, p)
 }
 
-func (ph *ProductHandlers) Search(ctx *gin.Context) {
+func (ph *productHandler) Search(ctx *gin.Context) {
 	price, err := strconv.ParseFloat(ctx.Query("priceGt"), 64)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
@@ -92,7 +87,7 @@ func (ph *ProductHandlers) Search(ctx *gin.Context) {
 	})
 }
 
-func (ph *ProductHandlers) Create(ctx *gin.Context) {
+func (ph *productHandler) Create(ctx *gin.Context) {
 	var r request
 
 	err := ctx.ShouldBindJSON(&r)
@@ -113,9 +108,11 @@ func (ph *ProductHandlers) Create(ctx *gin.Context) {
 		r.Price,
 	)
 	if err != nil {
+		log.Println("fail x2")
 		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
 			"error": errCreation.Error(),
 		})
+		return
 	}
 
 	ctx.Status(http.StatusCreated)

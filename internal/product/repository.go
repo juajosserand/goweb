@@ -2,15 +2,8 @@ package product
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
-)
-
-var (
-	errInvalidId           = errors.New("invalid product id")
-	errInvalidPrice        = errors.New("invalid product price")
-	errDuplicatedCodeValue = errors.New("duplicated product code value")
 )
 
 type ProductRepository interface {

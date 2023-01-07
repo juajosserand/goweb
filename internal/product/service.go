@@ -1,13 +1,8 @@
 package product
 
 import (
-	"errors"
 	"fmt"
 	"time"
-)
-
-var (
-	errNilRepository = errors.New("invalid nil product repository")
 )
 
 type ProductService interface {
@@ -21,14 +16,10 @@ type service struct {
 	repo ProductRepository
 }
 
-func NewService(r ProductRepository) (ProductService, error) {
-	if r == nil {
-		return &service{}, errNilRepository
-	}
-
+func NewService(r ProductRepository) ProductService {
 	return &service{
 		repo: r,
-	}, nil
+	}
 }
 
 func (s *service) All() []Product {
@@ -60,7 +51,7 @@ func (s *service) Create(name string, quantity int, codeValue string, isPublishe
 	}
 
 	if expDate.Before(time.Now()) {
-		return err
+		return errInvalidProductData
 	}
 
 	var dateStr string
