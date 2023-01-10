@@ -1,9 +1,11 @@
 package product
 
+import "gituhb.com/juajosserand/goweb/internal/domain"
+
 type ProductService interface {
-	All() []Product
-	GetById(int) (Product, error)
-	PriceGreaterThan(float64) ([]Product, error)
+	All() ([]domain.Product, error)
+	GetById(int) (domain.Product, error)
+	PriceGreaterThan(float64) ([]domain.Product, error)
 	Create(string, int, string, bool, string, float64) error
 	Update(int, string, int, string, bool, string, float64) error
 	UpdateName(int, string) error
@@ -20,20 +22,25 @@ func NewService(r ProductRepository) ProductService {
 	}
 }
 
-func (s *service) All() []Product {
-	return s.repo.All()
+func (s *service) All() ([]domain.Product, error) {
+	products, err := s.repo.All()
+	if err != nil {
+		return []domain.Product{}, err
+	}
+
+	return products, nil
 }
 
-func (s *service) GetById(id int) (Product, error) {
+func (s *service) GetById(id int) (domain.Product, error) {
 	return s.repo.GetById(id)
 }
 
-func (s *service) PriceGreaterThan(p float64) ([]Product, error) {
+func (s *service) PriceGreaterThan(p float64) ([]domain.Product, error) {
 	return s.repo.PriceGreaterThan(p)
 }
 
 func (s *service) Create(name string, quantity int, codeValue string, isPublished bool, expiration string, price float64) error {
-	p := Product{
+	p := domain.Product{
 		Name:        name,
 		Quantity:    quantity,
 		CodeValue:   codeValue,
@@ -43,12 +50,12 @@ func (s *service) Create(name string, quantity int, codeValue string, isPublishe
 	}
 
 	if !p.IsExpirationValid() {
-		return errInvalidProductData
+		return ErrInvalidProductData
 	}
 
 	err := p.ToDDMMYYYY()
 	if err != nil {
-		return errInvalidProductData
+		return ErrInvalidProductData
 	}
 
 	err = s.repo.Create(p)
@@ -60,7 +67,7 @@ func (s *service) Create(name string, quantity int, codeValue string, isPublishe
 }
 
 func (s *service) Update(id int, name string, quantity int, codeValue string, isPublished bool, expiration string, price float64) error {
-	p := Product{
+	p := domain.Product{
 		Id:          id,
 		Name:        name,
 		Quantity:    quantity,
@@ -71,12 +78,12 @@ func (s *service) Update(id int, name string, quantity int, codeValue string, is
 	}
 
 	if !p.IsExpirationValid() {
-		return errInvalidProductData
+		return ErrInvalidProductData
 	}
 
 	err := p.ToDDMMYYYY()
 	if err != nil {
-		return errInvalidProductData
+		return ErrInvalidProductData
 	}
 
 	err = s.repo.Update(p)
@@ -89,7 +96,7 @@ func (s *service) Update(id int, name string, quantity int, codeValue string, is
 
 func (s *service) UpdateName(id int, name string) error {
 	if name == "" {
-		return errInvalidProductData
+		return ErrInvalidProductData
 	}
 
 	err := s.repo.UpdateName(id, name)

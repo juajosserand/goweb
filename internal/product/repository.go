@@ -4,20 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"gituhb.com/juajosserand/goweb/internal/domain"
 )
 
 type ProductRepository interface {
-	All() []Product
-	GetById(int) (Product, error)
-	PriceGreaterThan(float64) ([]Product, error)
-	Create(Product) error
-	Update(Product) error
+	All() ([]domain.Product, error)
+	GetById(int) (domain.Product, error)
+	PriceGreaterThan(float64) ([]domain.Product, error)
+	Create(domain.Product) error
+	Update(domain.Product) error
 	UpdateName(int, string) error
 	Delete(int) error
 }
 
 type repository struct {
-	Products []Product `json:"products"`
+	Products []domain.Product `json:"products"`
 	filename string
 	lastId   int
 }
@@ -52,13 +54,13 @@ func (r *repository) readFromFile() error {
 	return nil
 }
 
-func (r *repository) All() []Product {
-	return r.Products
+func (r *repository) All() ([]domain.Product, error) {
+	return r.Products, nil
 }
 
-func (r *repository) GetById(id int) (Product, error) {
+func (r *repository) GetById(id int) (domain.Product, error) {
 	if id < 1 {
-		return Product{}, errInvalidId
+		return domain.Product{}, ErrInvalidId
 	}
 
 	for _, p := range r.Products {
@@ -67,15 +69,15 @@ func (r *repository) GetById(id int) (Product, error) {
 		}
 	}
 
-	return Product{}, nil
+	return domain.Product{}, nil
 }
 
-func (r *repository) PriceGreaterThan(price float64) ([]Product, error) {
+func (r *repository) PriceGreaterThan(price float64) ([]domain.Product, error) {
 	if price < 0 {
-		return []Product{}, errInvalidPrice
+		return []domain.Product{}, ErrInvalidPrice
 	}
 
-	var products []Product
+	var products []domain.Product
 	for _, p := range r.Products {
 		if p.Price > price {
 			products = append(products, p)
@@ -85,10 +87,10 @@ func (r *repository) PriceGreaterThan(price float64) ([]Product, error) {
 	return products, nil
 }
 
-func (r *repository) Create(p Product) error {
+func (r *repository) Create(p domain.Product) error {
 	for _, product := range r.Products {
 		if product.CodeValue == p.CodeValue {
-			return errDuplicatedCodeValue
+			return ErrDuplicatedCodeValue
 		}
 	}
 
@@ -98,14 +100,14 @@ func (r *repository) Create(p Product) error {
 	return nil
 }
 
-func (r *repository) Update(p Product) error {
+func (r *repository) Update(p domain.Product) error {
 	// find product
 	for i, product := range r.Products {
 		if product.Id == p.Id {
 			// check code value
 			for _, pCheck := range r.Products {
 				if pCheck.CodeValue == p.CodeValue && p.CodeValue != product.CodeValue {
-					return errDuplicatedCodeValue
+					return ErrDuplicatedCodeValue
 				}
 			}
 
@@ -115,7 +117,7 @@ func (r *repository) Update(p Product) error {
 		}
 	}
 
-	return errUnexistingProduct
+	return ErrUnexistingProduct
 }
 
 func (r *repository) UpdateName(id int, name string) error {
@@ -126,7 +128,7 @@ func (r *repository) UpdateName(id int, name string) error {
 		}
 	}
 
-	return errUnexistingProduct
+	return ErrUnexistingProduct
 }
 
 func (r *repository) Delete(id int) error {
@@ -137,5 +139,5 @@ func (r *repository) Delete(id int) error {
 		}
 	}
 
-	return errUnexistingProduct
+	return ErrUnexistingProduct
 }

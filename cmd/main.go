@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"gituhb.com/juajosserand/goweb/cmd/handler"
 	"gituhb.com/juajosserand/goweb/internal/product"
 	"gituhb.com/juajosserand/goweb/pkg/httpserver"
 )
@@ -28,7 +29,7 @@ func main() {
 
 	// http server
 	mux := gin.Default()
-	product.NewHandler(mux, svc)
+	handler.NewProductHandler(mux, svc)
 	server := httpserver.New(mux, httpserver.Port(os.Getenv("HTTP_SERVER_PORT")))
 
 	// signal
