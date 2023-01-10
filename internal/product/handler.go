@@ -1,7 +1,6 @@
 package product
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 
@@ -24,6 +23,9 @@ func NewHandler(mux *gin.Engine, s ProductService) {
 	productsMux.GET("/:id", ph.GetById)
 	productsMux.GET("/search", ph.Search)
 	productsMux.POST("/", ph.Create)
+	productsMux.PUT("/:id", ph.Update)
+	productsMux.PATCH("/:id", ph.UpdateName)
+	productsMux.DELETE("/:id", ph.Delete)
 }
 
 type request struct {
@@ -33,6 +35,15 @@ type request struct {
 	IsPublished bool    `json:"is_published"`
 	Expiration  string  `json:"expiration" binding:"required"`
 	Price       float64 `json:"price" binding:"required,gte=0"`
+}
+
+type patchRequest struct {
+	Name        string  `json:"name"`
+	Quantity    int     `json:"quantity"`
+	CodeValue   string  `json:"code_value"`
+	IsPublished bool    `json:"is_published"`
+	Expiration  string  `json:"expiration"`
+	Price       float64 `json:"price"`
 }
 
 func (ph *productHandler) Pong(ctx *gin.Context) {
@@ -108,7 +119,6 @@ func (ph *productHandler) Create(ctx *gin.Context) {
 		r.Price,
 	)
 	if err != nil {
-		log.Println("fail x2")
 		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
 			"error": errCreation.Error(),
 		})
@@ -116,4 +126,95 @@ func (ph *productHandler) Create(ctx *gin.Context) {
 	}
 
 	ctx.Status(http.StatusCreated)
+}
+
+func (ph *productHandler) Update(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": errInvalidId.Error(),
+		})
+		return
+	}
+
+	var r request
+
+	err = ctx.ShouldBindJSON(&r)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": errInvalidProductData.Error(),
+		})
+		return
+	}
+
+	err = ph.svc.Update(
+		id,
+		r.Name,
+		r.Quantity,
+		r.CodeValue,
+		r.IsPublished,
+		r.Expiration,
+		r.Price,
+	)
+	if err != nil {
+		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": errInvalidProductData.Error(),
+		})
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}
+
+func (ph *productHandler) UpdateName(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": errInvalidId.Error(),
+		})
+		return
+	}
+
+	var r patchRequest
+
+	err = ctx.ShouldBindJSON(&r)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": errInvalidProductData.Error(),
+		})
+		return
+	}
+
+	err = ph.svc.UpdateName(
+		id,
+		r.Name,
+	)
+	if err != nil {
+		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": errInvalidProductData.Error(),
+		})
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}
+
+func (ph *productHandler) Delete(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": errInvalidId.Error(),
+		})
+		return
+	}
+
+	err = ph.svc.Delete(id)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": errDeletion.Error(),
+		})
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
 }

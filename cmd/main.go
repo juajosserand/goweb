@@ -32,7 +32,6 @@ func main() {
 	// http server
 	mux := gin.Default()
 	product.NewHandler(mux, svc)
-
 	server := httpserver.New(mux, httpserver.Port(config.HTTP.Port))
 
 	// signal

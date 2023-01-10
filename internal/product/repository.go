@@ -11,6 +11,9 @@ type ProductRepository interface {
 	GetById(int) (Product, error)
 	PriceGreaterThan(float64) ([]Product, error)
 	Create(Product) error
+	Update(Product) error
+	UpdateName(int, string) error
+	Delete(int) error
 }
 
 type repository struct {
@@ -93,4 +96,46 @@ func (r *repository) Create(p Product) error {
 	p.Id = r.lastId
 	r.Products = append(r.Products, p)
 	return nil
+}
+
+func (r *repository) Update(p Product) error {
+	// find product
+	for i, product := range r.Products {
+		if product.Id == p.Id {
+			// check code value
+			for _, pCheck := range r.Products {
+				if pCheck.CodeValue == p.CodeValue && p.CodeValue != product.CodeValue {
+					return errDuplicatedCodeValue
+				}
+			}
+
+			r.Products[i] = p
+
+			return nil
+		}
+	}
+
+	return errUnexistingProduct
+}
+
+func (r *repository) UpdateName(id int, name string) error {
+	for i, product := range r.Products {
+		if product.Id == id {
+			r.Products[i].Name = name
+			return nil
+		}
+	}
+
+	return errUnexistingProduct
+}
+
+func (r *repository) Delete(id int) error {
+	for i, product := range r.Products {
+		if product.Id == id {
+			r.Products = append(r.Products[:i], r.Products[i+1:]...)
+			return nil
+		}
+	}
+
+	return errUnexistingProduct
 }
