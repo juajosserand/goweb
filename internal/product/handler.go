@@ -2,6 +2,7 @@ package product
 
 import (
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -67,7 +68,7 @@ func (ph *productHandler) GetById(ctx *gin.Context) {
 
 	p, err := ph.svc.GetById(id)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
+		ctx.JSON(http.StatusNotFound, gin.H{
 			"error": errInvalidId.Error(),
 		})
 		return
@@ -99,6 +100,13 @@ func (ph *productHandler) Search(ctx *gin.Context) {
 }
 
 func (ph *productHandler) Create(ctx *gin.Context) {
+	if ctx.GetHeader("token") != os.Getenv("TOKEN") {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"error": errInvalidToken.Error(),
+		})
+		return
+	}
+
 	var r request
 
 	err := ctx.ShouldBindJSON(&r)
@@ -109,7 +117,6 @@ func (ph *productHandler) Create(ctx *gin.Context) {
 		return
 	}
 
-	// create product
 	err = ph.svc.Create(
 		r.Name,
 		r.Quantity,
@@ -129,6 +136,13 @@ func (ph *productHandler) Create(ctx *gin.Context) {
 }
 
 func (ph *productHandler) Update(ctx *gin.Context) {
+	if ctx.GetHeader("token") != os.Getenv("TOKEN") {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"error": errInvalidToken.Error(),
+		})
+		return
+	}
+
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
@@ -167,6 +181,13 @@ func (ph *productHandler) Update(ctx *gin.Context) {
 }
 
 func (ph *productHandler) UpdateName(ctx *gin.Context) {
+	if ctx.GetHeader("token") != os.Getenv("TOKEN") {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"error": errInvalidToken.Error(),
+		})
+		return
+	}
+
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
@@ -200,6 +221,13 @@ func (ph *productHandler) UpdateName(ctx *gin.Context) {
 }
 
 func (ph *productHandler) Delete(ctx *gin.Context) {
+	if ctx.GetHeader("token") != os.Getenv("TOKEN") {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"error": errInvalidToken.Error(),
+		})
+		return
+	}
+
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{

@@ -8,20 +8,17 @@ import (
 	"syscall"
 
 	"github.com/gin-gonic/gin"
-	"gituhb.com/juajosserand/goweb/config"
+	"github.com/joho/godotenv"
 	"gituhb.com/juajosserand/goweb/internal/product"
 	"gituhb.com/juajosserand/goweb/pkg/httpserver"
 )
 
 func main() {
-	// reading config
-	config, err := config.New()
-	if err != nil {
-		log.Println(fmt.Errorf("error: %w", err))
-	}
+	// load env
+	_ = godotenv.Load()
 
 	// repository
-	repo, err := product.NewRepository(config.File.Path)
+	repo, err := product.NewRepository(os.Getenv("PRODUCTS_FILENAME"))
 	if err != nil {
 		log.Println(fmt.Errorf("error: %w", err))
 	}
@@ -32,7 +29,7 @@ func main() {
 	// http server
 	mux := gin.Default()
 	product.NewHandler(mux, svc)
-	server := httpserver.New(mux, httpserver.Port(config.HTTP.Port))
+	server := httpserver.New(mux, httpserver.Port(os.Getenv("HTTP_SERVER_PORT")))
 
 	// signal
 	interrupt := make(chan os.Signal, 1)

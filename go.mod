@@ -2,7 +2,10 @@ module gituhb.com/juajosserand/goweb
 
 go 1.19
 
-require github.com/gin-gonic/gin v1.8.2
+require (
+	github.com/gin-gonic/gin v1.8.2
+	github.com/joho/godotenv v1.4.0
+)
 
 require (
 	github.com/gin-contrib/sse v0.1.0 // indirect

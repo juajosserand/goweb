@@ -10,4 +10,5 @@ var (
 	errDeletion            = errors.New("unable to delete product")
 	errInvalidProductData  = errors.New("invalid product data")
 	errUnexistingProduct   = errors.New("unable to find product")
+	errInvalidToken        = errors.New("invalid token")
 )
