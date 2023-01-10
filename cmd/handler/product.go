@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gituhb.com/juajosserand/goweb/internal/product"
+	"gituhb.com/juajosserand/goweb/pkg/web"
 )
 
 type productHandler struct {
@@ -42,11 +43,14 @@ type request struct {
 	Price       float64 `json:"price" binding:"required,gte=0"`
 }
 
+// Authentication middleware
 func auth(ctx *gin.Context) {
 	if ctx.GetHeader("token") != os.Getenv("TOKEN") {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": product.ErrInvalidToken.Error(),
-		})
+		ctx.JSON(http.StatusUnauthorized, web.ErrResponse(
+			http.StatusUnauthorized,
+			"Unauthorized",
+			product.ErrInvalidToken.Error(),
+		))
 		return
 	}
 
@@ -58,76 +62,77 @@ func (ph *productHandler) Pong(ctx *gin.Context) {
 }
 
 func (ph *productHandler) GetAll(ctx *gin.Context) {
-	products, err := ph.svc.All()
+	ps, err := ph.svc.All()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
+			http.StatusInternalServerError,
+			"Internal Server Error",
+			err.Error(),
+		))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"products": products,
-	})
+	ctx.JSON(http.StatusOK, web.Response(ps))
 }
 
 func (ph *productHandler) GetById(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": product.ErrInvalidId.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+			http.StatusBadRequest,
+			"Bad Request",
+			product.ErrInvalidId.Error(),
+		))
 		return
 	}
 
 	p, err := ph.svc.GetById(id)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"error": product.ErrInvalidId.Error(),
-		})
+		ctx.JSON(http.StatusNotFound, web.ErrResponse(
+			http.StatusNotFound,
+			"Not Found",
+			product.ErrInvalidId.Error(),
+		))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, p)
+	ctx.JSON(http.StatusOK, web.Response(p))
 }
 
 func (ph *productHandler) Search(ctx *gin.Context) {
 	price, err := strconv.ParseFloat(ctx.Query("priceGt"), 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": product.ErrInvalidPrice.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+			http.StatusBadRequest,
+			"Bad Request",
+			product.ErrInvalidPrice.Error(),
+		))
 		return
 	}
 
 	ps, err := ph.svc.PriceGreaterThan(price)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": product.ErrInvalidPrice.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+			http.StatusBadRequest,
+			"Bad Request",
+			product.ErrInvalidPrice.Error(),
+		))
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"products": ps,
-	})
+	ctx.JSON(http.StatusOK, web.Response(ps))
 }
 
 func (ph *productHandler) Create(ctx *gin.Context) {
-	if ctx.GetHeader("token") != os.Getenv("TOKEN") {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": product.ErrInvalidToken.Error(),
-		})
-		return
-	}
-
 	var r request
 
 	err := ctx.ShouldBindJSON(&r)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": product.ErrInvalidProductData.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+			http.StatusBadRequest,
+			"Bad Request",
+			product.ErrInvalidProductData.Error(),
+		))
 		return
 	}
 
@@ -140,9 +145,11 @@ func (ph *productHandler) Create(ctx *gin.Context) {
 		r.Price,
 	)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"error": product.ErrCreation.Error(),
-		})
+		ctx.JSON(http.StatusUnprocessableEntity, web.ErrResponse(
+			http.StatusUnprocessableEntity,
+			"Unprocessable Entity",
+			product.ErrCreation.Error(),
+		))
 		return
 	}
 
@@ -150,18 +157,13 @@ func (ph *productHandler) Create(ctx *gin.Context) {
 }
 
 func (ph *productHandler) Update(ctx *gin.Context) {
-	if ctx.GetHeader("token") != os.Getenv("TOKEN") {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": product.ErrInvalidToken.Error(),
-		})
-		return
-	}
-
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": product.ErrInvalidId.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+			http.StatusBadRequest,
+			"Bad Request",
+			product.ErrInvalidId.Error(),
+		))
 		return
 	}
 
@@ -169,9 +171,11 @@ func (ph *productHandler) Update(ctx *gin.Context) {
 
 	err = ctx.ShouldBindJSON(&r)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": product.ErrInvalidProductData.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+			http.StatusBadRequest,
+			"Bad Request",
+			product.ErrInvalidProductData.Error(),
+		))
 		return
 	}
 
@@ -185,9 +189,11 @@ func (ph *productHandler) Update(ctx *gin.Context) {
 		r.Price,
 	)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"error": product.ErrInvalidProductData.Error(),
-		})
+		ctx.JSON(http.StatusUnprocessableEntity, web.ErrResponse(
+			http.StatusUnprocessableEntity,
+			"Unprocessable Entity",
+			product.ErrInvalidProductData.Error(),
+		))
 		return
 	}
 
@@ -195,18 +201,13 @@ func (ph *productHandler) Update(ctx *gin.Context) {
 }
 
 func (ph *productHandler) UpdateName(ctx *gin.Context) {
-	if ctx.GetHeader("token") != os.Getenv("TOKEN") {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": product.ErrInvalidToken.Error(),
-		})
-		return
-	}
-
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": product.ErrInvalidId.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+			http.StatusBadRequest,
+			"Bad Request",
+			product.ErrInvalidId.Error(),
+		))
 		return
 	}
 
@@ -223,17 +224,21 @@ func (ph *productHandler) UpdateName(ctx *gin.Context) {
 
 	err = ctx.ShouldBindJSON(&r)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": product.ErrInvalidProductData.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+			http.StatusBadRequest,
+			"Bad Request",
+			product.ErrInvalidProductData.Error(),
+		))
 		return
 	}
 
 	err = ph.svc.UpdateName(id, r.Name)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, gin.H{
-			"error": product.ErrInvalidProductData.Error(),
-		})
+		ctx.JSON(http.StatusUnprocessableEntity, web.ErrResponse(
+			http.StatusUnprocessableEntity,
+			"Unprocessable Entity",
+			product.ErrInvalidProductData.Error(),
+		))
 		return
 	}
 
@@ -241,26 +246,23 @@ func (ph *productHandler) UpdateName(ctx *gin.Context) {
 }
 
 func (ph *productHandler) Delete(ctx *gin.Context) {
-	if ctx.GetHeader("token") != os.Getenv("TOKEN") {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"error": product.ErrInvalidToken.Error(),
-		})
-		return
-	}
-
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": product.ErrInvalidId.Error(),
-		})
+		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+			http.StatusBadRequest,
+			"Bad Request",
+			product.ErrInvalidId.Error(),
+		))
 		return
 	}
 
 	err = ph.svc.Delete(id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": product.ErrDeletion.Error(),
-		})
+		ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
+			http.StatusInternalServerError,
+			"Internal Server Error",
+			err.Error(),
+		))
 		return
 	}
 

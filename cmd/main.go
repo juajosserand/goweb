@@ -19,7 +19,7 @@ func main() {
 	_ = godotenv.Load()
 
 	// repository
-	repo, err := product.NewRepository(os.Getenv("PRODUCTS_FILENAME"))
+	repo, err := product.NewRepository()
 	if err != nil {
 		log.Println(fmt.Errorf("error: %w", err))
 	}

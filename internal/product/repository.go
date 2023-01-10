@@ -1,11 +1,10 @@
 package product
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 
 	"gituhb.com/juajosserand/goweb/internal/domain"
+	"gituhb.com/juajosserand/goweb/pkg/store"
 )
 
 type ProductRepository interface {
@@ -20,38 +19,20 @@ type ProductRepository interface {
 
 type repository struct {
 	Products []domain.Product `json:"products"`
-	filename string
 	lastId   int
 }
 
-func NewRepository(fn string) (ProductRepository, error) {
-	r := &repository{
-		filename: fn,
-	}
+func NewRepository() (ProductRepository, error) {
+	r := &repository{}
 
-	err := r.readFromFile()
+	err := store.ReadJSON(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
 	if err != nil {
-		return nil, err
+		return r, err
 	}
 
 	r.lastId = r.Products[len(r.Products)-1].Id
 
 	return r, nil
-}
-
-func (r *repository) readFromFile() error {
-	f, err := os.OpenFile(r.filename, os.O_RDONLY, 0444)
-	if err != nil {
-		return fmt.Errorf("[repository.readFromFile] error: %w", err)
-	}
-	defer f.Close()
-
-	err = json.NewDecoder(f).Decode(&r.Products)
-	if err != nil {
-		return fmt.Errorf("[repository.readFromFile] error: %w", err)
-	}
-
-	return nil
 }
 
 func (r *repository) All() ([]domain.Product, error) {
@@ -97,6 +78,12 @@ func (r *repository) Create(p domain.Product) error {
 	r.lastId++
 	p.Id = r.lastId
 	r.Products = append(r.Products, p)
+
+	err := store.WriteJSON(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -113,6 +100,11 @@ func (r *repository) Update(p domain.Product) error {
 
 			r.Products[i] = p
 
+			err := store.WriteJSON(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		}
 	}
@@ -124,6 +116,12 @@ func (r *repository) UpdateName(id int, name string) error {
 	for i, product := range r.Products {
 		if product.Id == id {
 			r.Products[i].Name = name
+
+			err := store.WriteJSON(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		}
 	}
@@ -135,6 +133,12 @@ func (r *repository) Delete(id int) error {
 	for i, product := range r.Products {
 		if product.Id == id {
 			r.Products = append(r.Products[:i], r.Products[i+1:]...)
+
+			err := store.WriteJSON(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		}
 	}
