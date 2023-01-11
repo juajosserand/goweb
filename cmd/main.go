@@ -16,7 +16,10 @@ import (
 
 func main() {
 	// load env
-	_ = godotenv.Load()
+	err := godotenv.Load()
+	if err != nil {
+		log.Println(fmt.Errorf("error: %w", err))
+	}
 
 	// repository
 	repo, err := product.NewRepository()
@@ -29,7 +32,7 @@ func main() {
 
 	// http server
 	mux := gin.Default()
-	handler.NewProductHandler(mux, svc)
+	handler.NewProduct(mux, svc)
 	server := httpserver.New(mux, httpserver.Port(os.Getenv("HTTP_SERVER_PORT")))
 
 	// signal

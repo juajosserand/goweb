@@ -1,6 +1,8 @@
 package product
 
 import (
+	"fmt"
+
 	"gituhb.com/juajosserand/goweb/internal/domain"
 )
 
@@ -39,6 +41,10 @@ func (s *service) GetById(id int) (domain.Product, error) {
 }
 
 func (s *service) PriceGreaterThan(p float64) ([]domain.Product, error) {
+	if p < 0 {
+		return []domain.Product{}, ErrInvalidPrice
+	}
+
 	return s.repo.PriceGreaterThan(p)
 }
 
@@ -56,13 +62,11 @@ func (s *service) Create(name string, quantity int, codeValue string, isPublishe
 		return ErrInvalidData
 	}
 
-	err := p.ToDDMMYYYY()
-	if err != nil {
+	if err := p.ToDDMMYYYY(); err != nil {
 		return ErrInvalidData
 	}
 
-	err = s.repo.Create(p)
-	if err != nil {
+	if err := s.repo.Create(p); err != nil {
 		return err
 	}
 
@@ -108,7 +112,7 @@ func (s *service) PartialUpdate(id int, name string, quantity int, codeValue str
 		Price:       price,
 	}
 
-	err := s.repo.PartialUpdate(p)
+	err := s.repo.Update(p)
 	if err != nil {
 		return err
 	}
@@ -130,11 +134,13 @@ func (s *service) CustomerPrice(quantities map[int]int) (total float64, products
 		}
 
 		if q > p.Quantity {
-			return total, products, ErrNoStock(p.Name)
+			err = fmt.Errorf("%w: %s", ErrNoStock, p.Name)
+			return total, products, err
 		}
 
 		if !p.IsPublished {
-			return total, products, ErrNotPublished(p.Name)
+			err = fmt.Errorf("%w: %s", ErrNoStock, p.Name)
+			return total, products, err
 		}
 
 		products = append(products, p)

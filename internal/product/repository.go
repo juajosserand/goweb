@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"gituhb.com/juajosserand/goweb/internal/domain"
-	"gituhb.com/juajosserand/goweb/pkg/store"
+	"gituhb.com/juajosserand/goweb/pkg/storage"
 )
 
 type ProductRepository interface {
@@ -13,7 +13,6 @@ type ProductRepository interface {
 	PriceGreaterThan(float64) ([]domain.Product, error)
 	Create(domain.Product) error
 	Update(domain.Product) error
-	PartialUpdate(domain.Product) error
 	Delete(int) error
 }
 
@@ -25,7 +24,7 @@ type repository struct {
 func NewRepository() (ProductRepository, error) {
 	r := &repository{}
 
-	err := store.ReadFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+	err := storage.ReadFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
 	if err != nil {
 		return r, err
 	}
@@ -42,32 +41,23 @@ func (r *repository) All() ([]domain.Product, error) {
 }
 
 func (r *repository) GetById(id int) (domain.Product, error) {
-	if id < 1 {
-		return domain.Product{}, ErrInvalidId
-	}
-
 	for _, p := range r.Products {
 		if p.Id == id {
 			return p, nil
 		}
 	}
 
-	return domain.Product{}, nil
+	return domain.Product{}, ErrNotFound
 }
 
-func (r *repository) PriceGreaterThan(price float64) ([]domain.Product, error) {
-	if price < 0 {
-		return []domain.Product{}, ErrInvalidPrice
-	}
-
-	var products []domain.Product
+func (r *repository) PriceGreaterThan(price float64) (products []domain.Product, err error) {
 	for _, p := range r.Products {
 		if p.Price > price {
 			products = append(products, p)
 		}
 	}
 
-	return products, nil
+	return
 }
 
 func (r *repository) Create(p domain.Product) error {
@@ -81,7 +71,7 @@ func (r *repository) Create(p domain.Product) error {
 	p.Id = r.lastId
 	r.Products = append(r.Products, p)
 
-	err := store.WriteFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+	err := storage.WriteFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
 	if err != nil {
 		return err
 	}
@@ -90,7 +80,6 @@ func (r *repository) Create(p domain.Product) error {
 }
 
 func (r *repository) Update(p domain.Product) error {
-	// find product
 	for i, product := range r.Products {
 		if product.Id == p.Id {
 			// check code value
@@ -102,24 +91,7 @@ func (r *repository) Update(p domain.Product) error {
 
 			r.Products[i] = p
 
-			err := store.WriteFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		}
-	}
-
-	return ErrNotFound
-}
-
-func (r *repository) PartialUpdate(p domain.Product) error {
-	for i, product := range r.Products {
-		if product.Id == p.Id {
-			r.Products[i] = p
-
-			err := store.WriteFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+			err := storage.WriteFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
 			if err != nil {
 				return err
 			}
@@ -136,7 +108,7 @@ func (r *repository) Delete(id int) error {
 		if product.Id == id {
 			r.Products = append(r.Products[:i], r.Products[i+1:]...)
 
-			err := store.WriteFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+			err := storage.WriteFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
 			if err != nil {
 				return err
 			}

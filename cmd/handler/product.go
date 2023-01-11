@@ -2,6 +2,8 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -9,16 +11,17 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"gituhb.com/juajosserand/goweb/internal/product"
+	producti "gituhb.com/juajosserand/goweb/internal/product"
+	"gituhb.com/juajosserand/goweb/pkg/storage"
 	"gituhb.com/juajosserand/goweb/pkg/web"
 )
 
-type productHandler struct {
-	svc product.ProductService
+type product struct {
+	svc producti.ProductService
 }
 
-func NewProductHandler(mux *gin.Engine, s product.ProductService) {
-	ph := &productHandler{
+func NewProduct(mux *gin.Engine, s producti.ProductService) {
+	ph := &product{
 		svc: s,
 	}
 
@@ -52,7 +55,7 @@ func auth(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, web.ErrResponse(
 			http.StatusUnauthorized,
 			"Unauthorized",
-			product.ErrInvalidToken.Error(),
+			"invalid token",
 		))
 		return
 	}
@@ -60,17 +63,17 @@ func auth(ctx *gin.Context) {
 	ctx.Next()
 }
 
-func (ph *productHandler) Pong(ctx *gin.Context) {
+func (ph *product) Pong(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, web.Response("pong"))
 }
 
-func (ph *productHandler) GetAll(ctx *gin.Context) {
+func (ph *product) GetAll(ctx *gin.Context) {
 	ps, err := ph.svc.All()
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
 			http.StatusInternalServerError,
-			"Internal Server Error",
-			err.Error(),
+			"internal server error",
+			"internal server error",
 		))
 		return
 	}
@@ -78,63 +81,69 @@ func (ph *productHandler) GetAll(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, web.Response(ps))
 }
 
-func (ph *productHandler) GetById(ctx *gin.Context) {
+func (ph *product) GetById(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
 			http.StatusBadRequest,
-			"Bad Request",
-			product.ErrInvalidId.Error(),
+			"bad request",
+			producti.ErrInvalidId.Error(),
 		))
 		return
 	}
 
 	p, err := ph.svc.GetById(id)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, web.ErrResponse(
-			http.StatusNotFound,
-			"Not Found",
-			product.ErrInvalidId.Error(),
-		))
+		switch {
+		case errors.Is(err, producti.ErrNotFound):
+			ctx.JSON(http.StatusNotFound, web.ErrResponse(
+				http.StatusNotFound,
+				"not found",
+				producti.ErrNotFound.Error(),
+			))
+		}
 		return
 	}
 
-	ctx.JSON(http.StatusOK, web.Response(p))
+	ctx.JSON(http.StatusFound, web.Response(p))
 }
 
-func (ph *productHandler) Search(ctx *gin.Context) {
+func (ph *product) Search(ctx *gin.Context) {
 	price, err := strconv.ParseFloat(ctx.Query("priceGt"), 64)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
 			http.StatusBadRequest,
-			"Bad Request",
-			product.ErrInvalidPrice.Error(),
+			"bad request",
+			producti.ErrInvalidPrice.Error(),
 		))
 		return
 	}
 
 	ps, err := ph.svc.PriceGreaterThan(price)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
-			http.StatusBadRequest,
-			"Bad Request",
-			product.ErrInvalidPrice.Error(),
-		))
+		switch {
+		case errors.Is(err, producti.ErrInvalidPrice):
+			ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+				http.StatusBadRequest,
+				"bad request",
+				producti.ErrInvalidPrice.Error(),
+			))
+		}
 		return
 	}
 
 	ctx.JSON(http.StatusOK, web.Response(ps))
 }
 
-func (ph *productHandler) Create(ctx *gin.Context) {
+func (ph *product) Create(ctx *gin.Context) {
 	var r request
 
 	err := ctx.ShouldBindJSON(&r)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
 			http.StatusBadRequest,
-			"Bad Request",
-			product.ErrInvalidData.Error(),
+			"bad request",
+			producti.ErrInvalidData.Error(),
 		))
 		return
 	}
@@ -148,24 +157,40 @@ func (ph *productHandler) Create(ctx *gin.Context) {
 		r.Price,
 	)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, web.ErrResponse(
-			http.StatusUnprocessableEntity,
-			"Unprocessable Entity",
-			product.ErrCreation.Error(),
-		))
+		switch {
+		case errors.Is(err, producti.ErrInvalidData):
+			ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+				http.StatusBadRequest,
+				"bad request",
+				producti.ErrInvalidData.Error(),
+			))
+			log.Println(err)
+		case errors.Is(err, producti.ErrDuplicatedCodeValue):
+			ctx.JSON(http.StatusUnprocessableEntity, web.ErrResponse(
+				http.StatusUnprocessableEntity,
+				"unprocessable entity",
+				producti.ErrDuplicatedCodeValue.Error(),
+			))
+		case errors.Is(err, storage.ErrWriteFile):
+			ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
+				http.StatusInternalServerError,
+				"internal server error",
+				producti.ErrCreation.Error(),
+			))
+		}
 		return
 	}
 
 	ctx.Status(http.StatusCreated)
 }
 
-func (ph *productHandler) Update(ctx *gin.Context) {
+func (ph *product) Update(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
 			http.StatusBadRequest,
-			"Bad Request",
-			product.ErrInvalidId.Error(),
+			"bad request",
+			producti.ErrInvalidId.Error(),
 		))
 		return
 	}
@@ -176,8 +201,8 @@ func (ph *productHandler) Update(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
 			http.StatusBadRequest,
-			"Bad Request",
-			product.ErrInvalidData.Error(),
+			"bad request",
+			producti.ErrInvalidData.Error(),
 		))
 		return
 	}
@@ -192,24 +217,45 @@ func (ph *productHandler) Update(ctx *gin.Context) {
 		r.Price,
 	)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, web.ErrResponse(
-			http.StatusUnprocessableEntity,
-			"Unprocessable Entity",
-			product.ErrInvalidData.Error(),
-		))
+		switch {
+		case errors.Is(err, producti.ErrInvalidData):
+			ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+				http.StatusBadRequest,
+				"bad request",
+				producti.ErrInvalidData.Error(),
+			))
+		case errors.Is(err, producti.ErrDuplicatedCodeValue):
+			ctx.JSON(http.StatusUnprocessableEntity, web.ErrResponse(
+				http.StatusUnprocessableEntity,
+				"unprocessable entity",
+				producti.ErrDuplicatedCodeValue.Error(),
+			))
+		case errors.Is(err, storage.ErrWriteFile):
+			ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
+				http.StatusInternalServerError,
+				"internal server error",
+				producti.ErrCreation.Error(),
+			))
+		case errors.Is(err, producti.ErrNotFound):
+			ctx.JSON(http.StatusNotFound, web.ErrResponse(
+				http.StatusNotFound,
+				"not found",
+				producti.ErrNotFound.Error(),
+			))
+		}
 		return
 	}
 
 	ctx.Status(http.StatusNoContent)
 }
 
-func (ph *productHandler) PartialUpdate(ctx *gin.Context) {
+func (ph *product) PartialUpdate(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
 			http.StatusBadRequest,
-			"Bad Request",
-			product.ErrInvalidId.Error(),
+			"bad request",
+			producti.ErrInvalidId.Error(),
 		))
 		return
 	}
@@ -218,8 +264,8 @@ func (ph *productHandler) PartialUpdate(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, web.ErrResponse(
 			http.StatusNotFound,
-			"Not Found",
-			product.ErrNotFound.Error(),
+			"not found",
+			producti.ErrNotFound.Error(),
 		))
 		return
 	}
@@ -228,8 +274,8 @@ func (ph *productHandler) PartialUpdate(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
 			http.StatusBadRequest,
-			"Bad Request",
-			product.ErrInvalidData.Error(),
+			"bad request",
+			producti.ErrInvalidData.Error(),
 		))
 		return
 	}
@@ -244,49 +290,79 @@ func (ph *productHandler) PartialUpdate(ctx *gin.Context) {
 		p.Price,
 	)
 	if err != nil {
-		ctx.JSON(http.StatusUnprocessableEntity, web.ErrResponse(
-			http.StatusUnprocessableEntity,
-			"Unprocessable Entity",
-			product.ErrInvalidData.Error(),
-		))
+		switch {
+		case errors.Is(err, producti.ErrInvalidData):
+			ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+				http.StatusBadRequest,
+				"bad request",
+				producti.ErrInvalidData.Error(),
+			))
+		case errors.Is(err, producti.ErrDuplicatedCodeValue):
+			ctx.JSON(http.StatusUnprocessableEntity, web.ErrResponse(
+				http.StatusUnprocessableEntity,
+				"unprocessable entity",
+				producti.ErrDuplicatedCodeValue.Error(),
+			))
+		case errors.Is(err, storage.ErrWriteFile):
+			ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
+				http.StatusInternalServerError,
+				"internal server error",
+				producti.ErrCreation.Error(),
+			))
+		case errors.Is(err, producti.ErrNotFound):
+			ctx.JSON(http.StatusNotFound, web.ErrResponse(
+				http.StatusNotFound,
+				"not found",
+				producti.ErrNotFound.Error(),
+			))
+		}
 		return
 	}
 
 	ctx.Status(http.StatusNoContent)
 }
 
-func (ph *productHandler) Delete(ctx *gin.Context) {
+func (ph *product) Delete(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
 			http.StatusBadRequest,
-			"Bad Request",
-			product.ErrInvalidId.Error(),
+			"bad request",
+			producti.ErrInvalidId.Error(),
 		))
 		return
 	}
 
 	err = ph.svc.Delete(id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
-			http.StatusInternalServerError,
-			"Internal Server Error",
-			err.Error(),
-		))
+		switch {
+		case errors.Is(err, storage.ErrWriteFile):
+			ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
+				http.StatusInternalServerError,
+				"internal server error",
+				producti.ErrCreation.Error(),
+			))
+		case errors.Is(err, producti.ErrNotFound):
+			ctx.JSON(http.StatusNotFound, web.ErrResponse(
+				http.StatusNotFound,
+				"not found",
+				producti.ErrNotFound.Error(),
+			))
+		}
 		return
 	}
 
 	ctx.Status(http.StatusNoContent)
 }
 
-func (ph *productHandler) ConsumerPrice(ctx *gin.Context) {
+func (ph *product) ConsumerPrice(ctx *gin.Context) {
 	// compile regex
 	r, err := regexp.Compile(`\[\d+(?:,\d+)*\]`)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
 			http.StatusInternalServerError,
-			"Internal Server Error",
-			"",
+			"internal server error",
+			"unable to validate list of product ids",
 		))
 		return
 	}
@@ -297,8 +373,8 @@ func (ph *productHandler) ConsumerPrice(ctx *gin.Context) {
 	if !r.MatchString(listStr) {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
 			http.StatusBadRequest,
-			"Bad Request",
-			product.ErrInvalidConsumerPriceList.Error(),
+			"bad request",
+			producti.ErrInvalidConsumerPriceList.Error(),
 		))
 		return
 	}
@@ -315,8 +391,8 @@ func (ph *productHandler) ConsumerPrice(ctx *gin.Context) {
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
 				http.StatusInternalServerError,
-				"Internal Server Error",
-				product.ErrInvalidConsumerPriceList.Error(),
+				"internal server error",
+				producti.ErrInvalidConsumerPriceList.Error(),
 			))
 		}
 
@@ -326,11 +402,26 @@ func (ph *productHandler) ConsumerPrice(ctx *gin.Context) {
 	// compute total
 	total, products, err := ph.svc.CustomerPrice(productQuantities)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
-			http.StatusInternalServerError,
-			"Internal Server Error",
-			err.Error(),
-		))
+		switch {
+		case errors.Is(err, producti.ErrNotFound):
+			ctx.JSON(http.StatusNotFound, web.ErrResponse(
+				http.StatusNotFound,
+				"not found",
+				producti.ErrNotFound.Error(),
+			))
+		case errors.Is(err, producti.ErrNoStock):
+			ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+				http.StatusBadRequest,
+				"bad request",
+				producti.ErrNoStock.Error(),
+			))
+		case errors.Is(err, producti.ErrNotPublished):
+			ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+				http.StatusBadRequest,
+				"bad request",
+				producti.ErrNotPublished.Error(),
+			))
+		}
 		return
 	}
 

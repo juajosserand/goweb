@@ -1,4 +1,4 @@
-package store
+package storage
 
 import (
 	"encoding/csv"
@@ -12,35 +12,35 @@ import (
 func readCSV(path string, dest *[]domain.Product) error {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("[store.readCSV] error: %w", err)
+		return fmt.Errorf("[storage.readCSV] error: %w", err)
 	}
 	defer f.Close()
 
 	reader := csv.NewReader(f)
 	records, err := reader.ReadAll()
 	if err != nil {
-		return fmt.Errorf("[store.readCSV] error: %w", err)
+		return fmt.Errorf("[storage.readCSV] error: %w", err)
 	}
 
 	for _, record := range records {
 		id, err := strconv.Atoi(record[0])
 		if err != nil {
-			return fmt.Errorf("[store.readCSV] error: %w", err)
+			return fmt.Errorf("[storage.readCSV] error: %w", err)
 		}
 
 		quantity, err := strconv.Atoi(record[2])
 		if err != nil {
-			return fmt.Errorf("[store.readCSV] error: %w", err)
+			return fmt.Errorf("[storage.readCSV] error: %w", err)
 		}
 
 		isPublished, err := strconv.ParseBool(record[4])
 		if err != nil {
-			return fmt.Errorf("[store.readCSV] error: %w", err)
+			return fmt.Errorf("[storage.readCSV] error: %w", err)
 		}
 
 		price, err := strconv.ParseFloat(record[6], 64)
 		if err != nil {
-			return fmt.Errorf("[store.readCSV] error: %w", err)
+			return fmt.Errorf("[storage.readCSV] error: %w", err)
 		}
 
 		*dest = append(*dest, domain.Product{
@@ -65,7 +65,7 @@ func writeCSV(path string, data *[]domain.Product) error {
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("[store.writeCSV] error: %w", err)
+		return fmt.Errorf("[storage.writeCSV] error: %w", err)
 	}
 	defer f.Close()
 
@@ -85,7 +85,7 @@ func writeCSV(path string, data *[]domain.Product) error {
 	writer := csv.NewWriter(f)
 	err = writer.WriteAll(records)
 	if err != nil {
-		return fmt.Errorf("[store.writeCSV] error: %w", err)
+		return fmt.Errorf("[storage.writeCSV] error: %w", err)
 	}
 
 	return nil

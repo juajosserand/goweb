@@ -21,11 +21,7 @@ func (p *Product) IsExpirationValid() bool {
 		return false
 	}
 
-	if expDate.Before(time.Now()) {
-		return false
-	}
-
-	return true
+	return !expDate.Before(time.Now())
 }
 
 func (p *Product) ToDDMMYYYY() error {

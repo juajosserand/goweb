@@ -2,7 +2,6 @@ package product
 
 import (
 	"errors"
-	"fmt"
 )
 
 var (
@@ -14,15 +13,7 @@ var (
 	ErrInvalidId                = errors.New("invalid product id")
 	ErrInvalidPrice             = errors.New("invalid product price")
 	ErrDuplicatedCodeValue      = errors.New("duplicated product code value")
-	ErrInvalidConsumerPriceList = errors.New("invalid product list")
-
-	ErrInvalidToken = errors.New("invalid token")
+	ErrInvalidConsumerPriceList = errors.New("invalid list of product ids")
+	ErrNoStock                  = errors.New("no enough stock for product")
+	ErrNotPublished             = errors.New("not published product")
 )
-
-func ErrNoStock(name string) error {
-	return fmt.Errorf("no enough stock for product %s", name)
-}
-
-func ErrNotPublished(name string) error {
-	return fmt.Errorf("product %s is not published", name)
-}
