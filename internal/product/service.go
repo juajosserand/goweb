@@ -1,6 +1,8 @@
 package product
 
-import "gituhb.com/juajosserand/goweb/internal/domain"
+import (
+	"gituhb.com/juajosserand/goweb/internal/domain"
+)
 
 type ProductService interface {
 	All() ([]domain.Product, error)
@@ -8,8 +10,9 @@ type ProductService interface {
 	PriceGreaterThan(float64) ([]domain.Product, error)
 	Create(string, int, string, bool, string, float64) error
 	Update(int, string, int, string, bool, string, float64) error
-	UpdateName(int, string) error
+	PartialUpdate(int, string, int, string, bool, string, float64) error
 	Delete(int) error
+	CustomerPrice(map[int]int) (float64, []domain.Product, error)
 }
 
 type service struct {
@@ -50,12 +53,12 @@ func (s *service) Create(name string, quantity int, codeValue string, isPublishe
 	}
 
 	if !p.IsExpirationValid() {
-		return ErrInvalidProductData
+		return ErrInvalidData
 	}
 
 	err := p.ToDDMMYYYY()
 	if err != nil {
-		return ErrInvalidProductData
+		return ErrInvalidData
 	}
 
 	err = s.repo.Create(p)
@@ -78,12 +81,12 @@ func (s *service) Update(id int, name string, quantity int, codeValue string, is
 	}
 
 	if !p.IsExpirationValid() {
-		return ErrInvalidProductData
+		return ErrInvalidData
 	}
 
 	err := p.ToDDMMYYYY()
 	if err != nil {
-		return ErrInvalidProductData
+		return ErrInvalidData
 	}
 
 	err = s.repo.Update(p)
@@ -94,12 +97,18 @@ func (s *service) Update(id int, name string, quantity int, codeValue string, is
 	return nil
 }
 
-func (s *service) UpdateName(id int, name string) error {
-	if name == "" {
-		return ErrInvalidProductData
+func (s *service) PartialUpdate(id int, name string, quantity int, codeValue string, isPublished bool, expiration string, price float64) error {
+	p := domain.Product{
+		Id:          id,
+		Name:        name,
+		Quantity:    quantity,
+		CodeValue:   codeValue,
+		IsPublished: isPublished,
+		Expiration:  expiration,
+		Price:       price,
 	}
 
-	err := s.repo.UpdateName(id, name)
+	err := s.repo.PartialUpdate(p)
 	if err != nil {
 		return err
 	}
@@ -109,4 +118,38 @@ func (s *service) UpdateName(id int, name string) error {
 
 func (s *service) Delete(id int) error {
 	return s.repo.Delete(id)
+}
+
+func (s *service) CustomerPrice(quantities map[int]int) (total float64, products []domain.Product, err error) {
+	var numProducts int
+
+	for id, q := range quantities {
+		p, err := s.repo.GetById(id)
+		if err != nil {
+			return total, products, err
+		}
+
+		if q > p.Quantity {
+			return total, products, ErrNoStock(p.Name)
+		}
+
+		if !p.IsPublished {
+			return total, products, ErrNotPublished(p.Name)
+		}
+
+		products = append(products, p)
+		numProducts += q
+		total += p.Price * float64(q)
+	}
+
+	switch {
+	case numProducts < 10:
+		total *= 1.21
+	case numProducts >= 10 && numProducts < 20:
+		total *= 1.17
+	case numProducts >= 20:
+		total *= 1.15
+	}
+
+	return
 }

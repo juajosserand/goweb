@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gituhb.com/juajosserand/goweb/internal/product"
@@ -25,12 +28,13 @@ func NewProductHandler(mux *gin.Engine, s product.ProductService) {
 	productsMux.GET("/", ph.GetAll)
 	productsMux.GET("/:id", ph.GetById)
 	productsMux.GET("/search", ph.Search)
+	productsMux.GET("/consumer_price", ph.ConsumerPrice)
 
 	productsMux.Use(auth)
 
 	productsMux.POST("/", ph.Create)
 	productsMux.PUT("/:id", ph.Update)
-	productsMux.PATCH("/:id", ph.UpdateName)
+	productsMux.PATCH("/:id", ph.PartialUpdate)
 	productsMux.DELETE("/:id", ph.Delete)
 }
 
@@ -43,7 +47,6 @@ type request struct {
 	Price       float64 `json:"price" binding:"required,gte=0"`
 }
 
-// Authentication middleware
 func auth(ctx *gin.Context) {
 	if ctx.GetHeader("token") != os.Getenv("TOKEN") {
 		ctx.JSON(http.StatusUnauthorized, web.ErrResponse(
@@ -58,7 +61,7 @@ func auth(ctx *gin.Context) {
 }
 
 func (ph *productHandler) Pong(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{"msg": "pong"})
+	ctx.JSON(http.StatusOK, web.Response("pong"))
 }
 
 func (ph *productHandler) GetAll(ctx *gin.Context) {
@@ -131,7 +134,7 @@ func (ph *productHandler) Create(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
 			http.StatusBadRequest,
 			"Bad Request",
-			product.ErrInvalidProductData.Error(),
+			product.ErrInvalidData.Error(),
 		))
 		return
 	}
@@ -174,7 +177,7 @@ func (ph *productHandler) Update(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
 			http.StatusBadRequest,
 			"Bad Request",
-			product.ErrInvalidProductData.Error(),
+			product.ErrInvalidData.Error(),
 		))
 		return
 	}
@@ -192,7 +195,7 @@ func (ph *productHandler) Update(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnprocessableEntity, web.ErrResponse(
 			http.StatusUnprocessableEntity,
 			"Unprocessable Entity",
-			product.ErrInvalidProductData.Error(),
+			product.ErrInvalidData.Error(),
 		))
 		return
 	}
@@ -200,7 +203,7 @@ func (ph *productHandler) Update(ctx *gin.Context) {
 	ctx.Status(http.StatusNoContent)
 }
 
-func (ph *productHandler) UpdateName(ctx *gin.Context) {
+func (ph *productHandler) PartialUpdate(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
@@ -211,33 +214,40 @@ func (ph *productHandler) UpdateName(ctx *gin.Context) {
 		return
 	}
 
-	type request struct {
-		Name        string  `json:"name"`
-		Quantity    int     `json:"quantity"`
-		CodeValue   string  `json:"code_value"`
-		IsPublished bool    `json:"is_published"`
-		Expiration  string  `json:"expiration"`
-		Price       float64 `json:"price"`
-	}
-
-	var r request
-
-	err = ctx.ShouldBindJSON(&r)
+	p, err := ph.svc.GetById(id)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
-			http.StatusBadRequest,
-			"Bad Request",
-			product.ErrInvalidProductData.Error(),
+		ctx.JSON(http.StatusNotFound, web.ErrResponse(
+			http.StatusNotFound,
+			"Not Found",
+			product.ErrNotFound.Error(),
 		))
 		return
 	}
 
-	err = ph.svc.UpdateName(id, r.Name)
+	err = json.NewDecoder(ctx.Request.Body).Decode(&p)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+			http.StatusBadRequest,
+			"Bad Request",
+			product.ErrInvalidData.Error(),
+		))
+		return
+	}
+
+	err = ph.svc.PartialUpdate(
+		p.Id,
+		p.Name,
+		p.Quantity,
+		p.CodeValue,
+		p.IsPublished,
+		p.Expiration,
+		p.Price,
+	)
 	if err != nil {
 		ctx.JSON(http.StatusUnprocessableEntity, web.ErrResponse(
 			http.StatusUnprocessableEntity,
 			"Unprocessable Entity",
-			product.ErrInvalidProductData.Error(),
+			product.ErrInvalidData.Error(),
 		))
 		return
 	}
@@ -267,4 +277,65 @@ func (ph *productHandler) Delete(ctx *gin.Context) {
 	}
 
 	ctx.Status(http.StatusNoContent)
+}
+
+func (ph *productHandler) ConsumerPrice(ctx *gin.Context) {
+	// compile regex
+	r, err := regexp.Compile(`\[\d+(?:,\d+)*\]`)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
+			http.StatusInternalServerError,
+			"Internal Server Error",
+			"",
+		))
+		return
+	}
+
+	// validate list string
+	listStr := ctx.Query("list")
+
+	if !r.MatchString(listStr) {
+		ctx.JSON(http.StatusBadRequest, web.ErrResponse(
+			http.StatusBadRequest,
+			"Bad Request",
+			product.ErrInvalidConsumerPriceList.Error(),
+		))
+		return
+	}
+
+	// parse ids
+	listStr = listStr[1 : len(listStr)-1]
+	split := strings.Split(listStr, ",")
+
+	// convert ids and count products
+	productQuantities := make(map[int]int)
+
+	for _, s := range split {
+		id, err := strconv.Atoi(s)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
+				http.StatusInternalServerError,
+				"Internal Server Error",
+				product.ErrInvalidConsumerPriceList.Error(),
+			))
+		}
+
+		productQuantities[id]++
+	}
+
+	// compute total
+	total, products, err := ph.svc.CustomerPrice(productQuantities)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, web.ErrResponse(
+			http.StatusInternalServerError,
+			"Internal Server Error",
+			err.Error(),
+		))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, web.Response(gin.H{
+		"products":    products,
+		"total_price": total,
+	}))
 }

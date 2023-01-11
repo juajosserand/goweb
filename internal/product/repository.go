@@ -13,7 +13,7 @@ type ProductRepository interface {
 	PriceGreaterThan(float64) ([]domain.Product, error)
 	Create(domain.Product) error
 	Update(domain.Product) error
-	UpdateName(int, string) error
+	PartialUpdate(domain.Product) error
 	Delete(int) error
 }
 
@@ -25,12 +25,14 @@ type repository struct {
 func NewRepository() (ProductRepository, error) {
 	r := &repository{}
 
-	err := store.ReadJSON(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+	err := store.ReadFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
 	if err != nil {
 		return r, err
 	}
 
-	r.lastId = r.Products[len(r.Products)-1].Id
+	if len(r.Products) > 0 {
+		r.lastId = r.Products[len(r.Products)-1].Id
+	}
 
 	return r, nil
 }
@@ -79,7 +81,7 @@ func (r *repository) Create(p domain.Product) error {
 	p.Id = r.lastId
 	r.Products = append(r.Products, p)
 
-	err := store.WriteJSON(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+	err := store.WriteFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
 	if err != nil {
 		return err
 	}
@@ -100,7 +102,7 @@ func (r *repository) Update(p domain.Product) error {
 
 			r.Products[i] = p
 
-			err := store.WriteJSON(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+			err := store.WriteFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
 			if err != nil {
 				return err
 			}
@@ -109,15 +111,15 @@ func (r *repository) Update(p domain.Product) error {
 		}
 	}
 
-	return ErrUnexistingProduct
+	return ErrNotFound
 }
 
-func (r *repository) UpdateName(id int, name string) error {
+func (r *repository) PartialUpdate(p domain.Product) error {
 	for i, product := range r.Products {
-		if product.Id == id {
-			r.Products[i].Name = name
+		if product.Id == p.Id {
+			r.Products[i] = p
 
-			err := store.WriteJSON(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+			err := store.WriteFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
 			if err != nil {
 				return err
 			}
@@ -126,7 +128,7 @@ func (r *repository) UpdateName(id int, name string) error {
 		}
 	}
 
-	return ErrUnexistingProduct
+	return ErrNotFound
 }
 
 func (r *repository) Delete(id int) error {
@@ -134,7 +136,7 @@ func (r *repository) Delete(id int) error {
 		if product.Id == id {
 			r.Products = append(r.Products[:i], r.Products[i+1:]...)
 
-			err := store.WriteJSON(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
+			err := store.WriteFile(os.Getenv("PRODUCTS_FILENAME"), &r.Products)
 			if err != nil {
 				return err
 			}
@@ -143,5 +145,5 @@ func (r *repository) Delete(id int) error {
 		}
 	}
 
-	return ErrUnexistingProduct
+	return ErrNotFound
 }

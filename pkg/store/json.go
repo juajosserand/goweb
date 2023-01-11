@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func ReadJSON(path string, dest any) error {
+func readJSON(path string, dest any) error {
 	f, err := os.OpenFile(path, os.O_RDONLY, 0444)
 	if err != nil {
 		return fmt.Errorf("[store.ReadJSON] error: %w", err)
@@ -21,7 +21,7 @@ func ReadJSON(path string, dest any) error {
 	return nil
 }
 
-func WriteJSON(path string, data any) error {
+func writeJSON(path string, data any) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("[store.WriteJSON] error: %w", err)
