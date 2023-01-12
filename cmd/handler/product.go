@@ -280,7 +280,7 @@ func (ph *product) PartialUpdate(ctx *gin.Context) {
 		return
 	}
 
-	err = ph.svc.PartialUpdate(
+	err = ph.svc.Update(
 		p.Id,
 		p.Name,
 		p.Quantity,

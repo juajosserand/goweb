@@ -3,6 +3,7 @@ package product
 import (
 	"fmt"
 
+	"github.com/go-playground/validator"
 	"gituhb.com/juajosserand/goweb/internal/domain"
 )
 
@@ -12,7 +13,6 @@ type ProductService interface {
 	PriceGreaterThan(float64) ([]domain.Product, error)
 	Create(string, int, string, bool, string, float64) error
 	Update(int, string, int, string, bool, string, float64) error
-	PartialUpdate(int, string, int, string, bool, string, float64) error
 	Delete(int) error
 	CustomerPrice(map[int]int) (float64, []domain.Product, error)
 }
@@ -84,6 +84,10 @@ func (s *service) Update(id int, name string, quantity int, codeValue string, is
 		Price:       price,
 	}
 
+	if err := validator.New().Struct(&p); err != nil {
+		return ErrInvalidData
+	}
+
 	if !p.IsExpirationValid() {
 		return ErrInvalidData
 	}
@@ -94,25 +98,6 @@ func (s *service) Update(id int, name string, quantity int, codeValue string, is
 	}
 
 	err = s.repo.Update(p)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *service) PartialUpdate(id int, name string, quantity int, codeValue string, isPublished bool, expiration string, price float64) error {
-	p := domain.Product{
-		Id:          id,
-		Name:        name,
-		Quantity:    quantity,
-		CodeValue:   codeValue,
-		IsPublished: isPublished,
-		Expiration:  expiration,
-		Price:       price,
-	}
-
-	err := s.repo.Update(p)
 	if err != nil {
 		return err
 	}

@@ -20,7 +20,7 @@ func ReadFile(path string, dest any) error {
 	case ext == ".json":
 		err := readJSON(path, dest)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrReadFile, err)
+			return fmt.Errorf("%w: %s", ErrReadFile, err.Error())
 		}
 
 		return nil
@@ -32,7 +32,7 @@ func ReadFile(path string, dest any) error {
 
 		err := readCSV(path, products)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrReadFile, err)
+			return fmt.Errorf("%w: %s", ErrReadFile, err.Error())
 		}
 
 		return nil
@@ -48,7 +48,7 @@ func WriteFile(path string, data any) error {
 	case ext == ".json":
 		err := writeJSON(path, data)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrWriteFile, err)
+			return fmt.Errorf("%w: %s", ErrWriteFile, err.Error())
 		}
 
 		return nil
@@ -60,7 +60,7 @@ func WriteFile(path string, data any) error {
 
 		err := writeCSV(path, products)
 		if err != nil {
-			return fmt.Errorf("%w: %w", ErrWriteFile, err)
+			return fmt.Errorf("%w: %s", ErrWriteFile, err.Error())
 		}
 		return nil
 	default:
